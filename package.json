@@ -1,0 +1,20 @@
+{
+  "name": "deadline-dashboard",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server",
+    "packages/contracts"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace packages/contracts && npm run build --workspace server && npm run build --workspace client",
+    "db:migrate": "npm run db:migrate --workspace server",
+    "dev": "concurrently -n server,client -c green,blue \"npm run dev --workspace server\" \"npm run dev --workspace client\"",
+    "postinstall": "npm run build --workspace packages/contracts",
+    "test": "npm run test --workspace server",
+    "typecheck": "npm run typecheck --workspace packages/contracts && npm run build --workspace packages/contracts && npm run typecheck --workspace server && npm run typecheck --workspace client"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.0"
+  }
+}

@@ -1,0 +1,39 @@
+[
+  {
+    "Name": "worker-501b-01",
+    "Pools": ["ula-501b"],
+    "Groups": ["ula-501b"],
+    "Stat": 1
+  },
+  {
+    "Name": "worker-501b-02",
+    "Pools": ["ula-501b"],
+    "Groups": ["ula-501b"],
+    "Stat": 2
+  },
+  {
+    "Name": "worker-501c-01",
+    "Pools": ["misc"],
+    "Groups": ["ula-501c"],
+    "Stat": 4
+  },
+  {
+    "Name": "worker-502-01",
+    "Pools": ["ula-502"],
+    "Groups": ["ula-502"],
+    "Stat": 8
+  },
+  {
+    "Name": "worker-offline",
+    "Pools": ["ula-502"],
+    "Groups": ["ula-502"],
+    "Stat": 3
+  },
+  {
+    "Name": "worker-unassigned",
+    "Pools": ["general"],
+    "Groups": ["general"],
+    "Stat": 17
+  }
+]
+

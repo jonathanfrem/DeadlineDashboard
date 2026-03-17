@@ -1,0 +1,107 @@
+:root {
+  color: #e6edf5;
+  background:
+    radial-gradient(circle at top left, rgba(255, 180, 80, 0.18), transparent 35%),
+    linear-gradient(135deg, #09131d 0%, #0f2235 48%, #152f29 100%);
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+}
+
+.hero-card {
+  width: min(900px, 100%);
+  padding: 2rem;
+  border-radius: 24px;
+  background: rgba(9, 18, 27, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(18px);
+}
+
+.eyebrow {
+  margin: 0 0 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #f0c16a;
+  font-size: 0.78rem;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 3.6rem);
+  line-height: 1.02;
+}
+
+.lead {
+  margin: 1rem 0 1.5rem;
+  max-width: 44rem;
+  color: rgba(230, 237, 245, 0.8);
+  font-size: 1.05rem;
+}
+
+.status-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.status-card {
+  padding: 1rem;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.status-card span {
+  display: block;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(230, 237, 245, 0.6);
+}
+
+.status-card strong {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 1.2rem;
+}
+
+.status-output {
+  margin: 0;
+  padding: 1rem;
+  overflow: auto;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.28);
+  color: #b9e7f7;
+}
+
+@media (max-width: 640px) {
+  .hero-card {
+    padding: 1.25rem;
+  }
+}
+

@@ -1,0 +1,33 @@
+[
+  {
+    "Name": "worker-501b-01",
+    "Pool": "ula-501b",
+    "Group": "ula-501b"
+  },
+  {
+    "Name": "worker-501b-02",
+    "Pool": "ula-501b",
+    "Group": "ula-501b"
+  },
+  {
+    "Name": "worker-501c-01",
+    "Pool": "misc",
+    "Group": "ula-501c"
+  },
+  {
+    "Name": "worker-502-01",
+    "Pool": "ula-502",
+    "Group": "ula-502"
+  },
+  {
+    "Name": "worker-offline",
+    "Pool": "ula-502",
+    "Group": "ula-502"
+  },
+  {
+    "Name": "worker-unassigned",
+    "Pool": "general",
+    "Group": "general"
+  }
+]
+

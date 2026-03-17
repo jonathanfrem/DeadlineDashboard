@@ -1,0 +1,55 @@
+[
+  {
+    "_id": "job-rendering",
+    "Name": "Lighting Render",
+    "UserName": "jonathan",
+    "Stat": 1,
+    "RenderingChunks": 4,
+    "CompletedPercentage": "67 %",
+    "DateSubmitted": "2026-03-17T12:00:00Z",
+    "Pool": "ula-501b",
+    "Group": "ula-501b",
+    "SlaveNames": ["worker-501b-01", "worker-501b-02"]
+  },
+  {
+    "_id": "job-queued",
+    "Name": "Student Queue",
+    "UserName": "student",
+    "Stat": 1,
+    "RenderingChunks": 0,
+    "CompletedPercentage": "0 %",
+    "DateSubmitted": "2026-03-17T11:00:00Z",
+    "Pool": "ula-501c",
+    "Group": "ula-501c"
+  },
+  {
+    "_id": "job-failed",
+    "Name": "Broken Sim",
+    "UserName": "student",
+    "Stat": 4,
+    "RenderingChunks": 0,
+    "CompletedPercentage": "20 %",
+    "DateSubmitted": "2026-03-17T10:00:00Z",
+    "Pool": "ula-502",
+    "Group": "ula-502"
+  },
+  {
+    "_id": "job-pending",
+    "Name": "Prep Job",
+    "UserName": "operator",
+    "Stat": 6,
+    "DateSubmitted": "2026-03-17T09:00:00Z",
+    "Pool": "ula-501b",
+    "Group": "ula-501b"
+  },
+  {
+    "_id": "job-suspended",
+    "Name": "Paused Shot",
+    "UserName": "operator",
+    "Stat": 2,
+    "DateSubmitted": "2026-03-17T08:00:00Z",
+    "Pool": "ula-502",
+    "Group": "ula-502"
+  }
+]
+
