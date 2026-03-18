@@ -58,6 +58,8 @@ const dashboardMeta = {
   madeBy: "Jonathan Fremstad",
   version: "v0.1.0"
 };
+const ISSUE_ROWS_PER_PAGE = 5;
+const ISSUE_PAGE_ROTATION_MS = 10_000;
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat("en-US").format(value);
@@ -126,22 +128,12 @@ function formatDuration(value: number | null): string {
   return `${minutes}m`;
 }
 
-function formatIssueMessage(value: string | null): string | null {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.replace(/\s+/g, " ").trim();
-
-  if (normalized.length <= 96) {
-    return normalized;
-  }
-
-  return `${normalized.slice(0, 93)}...`;
-}
-
 function formatRoomLabel(value: string): string {
   return value.replace(/^ula-/i, "").toUpperCase();
+}
+
+function formatIssueRoom(value: string | null): string {
+  return value ? formatRoomLabel(value) : "Unassigned";
 }
 
 function getJobCount(jobs: JobRow[], filter: JobFilter): number {
@@ -378,50 +370,85 @@ function WorkerIssuesPanel({
   issues: WorkerIssue[];
   lookbackMinutes: number;
 }) {
+  const pageCount = Math.max(1, Math.ceil(issues.length / ISSUE_ROWS_PER_PAGE));
+  const [pageIndex, setPageIndex] = useState(0);
+
+  useEffect(() => {
+    setPageIndex(0);
+  }, [issues.length]);
+
+  useEffect(() => {
+    if (pageCount <= 1) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setPageIndex((current) => (current + 1) % pageCount);
+    }, ISSUE_PAGE_ROTATION_MS);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [pageCount]);
+
+  const visibleIssues = issues.slice(
+    pageIndex * ISSUE_ROWS_PER_PAGE,
+    (pageIndex + 1) * ISSUE_ROWS_PER_PAGE
+  );
+
   return (
     <section className="panel service-panel">
       <div className="panel-header">
         <div>
-          <span className="panel-kicker">Attention</span>
+          <span className="panel-kicker"></span>
           <h2>Machines needing attention</h2>
-        </div>
-        <strong>{issues.length}</strong>
-      </div>
-      <p className="panel-caption">
+          <p className="panel-caption">
         Recent worker errors seen in the last {lookbackMinutes} minutes.
       </p>
+        </div>
+        <strong>{issues.length}</strong>
+        
+      </div>
+      
       {issues.length === 0 ? (
         <div className="issues-empty">
           <p>No recent worker errors were found in the current lookback window.</p>
         </div>
       ) : (
-        <div className="issues-list">
-          {issues.map((issue) => (
-            <article className="issue-row" key={issue.workerName}>
-              <div className="issue-row-header">
-                <div>
-                  <div className="issue-worker-line">
-                    <strong>{issue.workerName}</strong>
-                    {issue.disabled ? (
-                      <span className="issue-flag">Disabled</span>
-                    ) : null}
-                  </div>
-                  <p>
-                    {issue.roomKey ?? "Unassigned"} · Last error{" "}
-                    {formatRelativeFreshness(issue.lastErrorAt)}
-                  </p>
+        <>
+          <div className="issues-list paged">
+            {visibleIssues.map((issue) => (
+              <article className="issue-row compact" key={issue.workerName}>
+                <div className="issue-primary">
+                  <strong>{issue.workerName}</strong>
+                  <span>{formatIssueRoom(issue.roomKey)}</span>
+                  {issue.disabled ? (
+                    <span className="issue-flag">Disabled</span>
+                  ) : null}
                 </div>
-                <StatusBadge
-                  tone={issue.level === "critical" ? "danger" : "warning"}
-                  value={`${issue.errorCount} error${issue.errorCount === 1 ? "" : "s"}`}
-                />
-              </div>
-              {issue.lastErrorMessage ? (
-                <p className="issue-message">{formatIssueMessage(issue.lastErrorMessage)}</p>
-              ) : null}
-            </article>
-          ))}
-        </div>
+                <div className="issue-secondary">
+                  <span>{formatRelativeFreshness(issue.lastErrorAt)}</span>
+                  <StatusBadge
+                    tone={issue.level === "critical" ? "danger" : "warning"}
+                    value={`${issue.errorCount} error${issue.errorCount === 1 ? "" : "s"}`}
+                  />
+                </div>
+              </article>
+            ))}
+          </div>
+          <div className="issues-pagination">
+            {pageCount > 1 ? (
+              <span>
+                Page {pageIndex + 1}/{pageCount}
+              </span>
+            ) : (
+              <span>Page 1/1</span>
+            )}
+            <span>
+              {issues.length} machine{issues.length === 1 ? "" : "s"} total
+            </span>
+          </div>
+        </>
       )}
     </section>
   );
