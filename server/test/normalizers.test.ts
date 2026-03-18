@@ -42,9 +42,9 @@ describe("normalizeDeadlineData", () => {
     expect(result.summary.totals.stalled).toBe(1);
     expect(result.summary.totals.startingJob).toBe(1);
     expect(result.summary.totals.offline).toBe(1);
-    expect(result.summary.totals.unknown).toBe(1);
-    expect(result.summary.utilization).toBeCloseTo(1 / 6, 4);
-    expect(result.roomsResponse.unassignedWorkersCount).toBe(1);
+    expect(result.summary.totals.unknown).toBe(0);
+    expect(result.summary.utilization).toBeCloseTo(1 / 5, 4);
+    expect(result.roomsResponse.unassignedWorkersCount).toBe(0);
     expect(
       result.roomsResponse.rooms.find((room) => room.roomKey === "ula-501b")
         ?.disabledWorkers
@@ -377,5 +377,50 @@ describe("normalizeDeadlineData", () => {
         workerName: "worker-a"
       })
     ]);
+  });
+
+  it("does not count or surface unassigned workers anywhere", () => {
+    const result = normalizeDeadlineData(
+      {
+        groups: ["ula-501b", "ula-501c", "ula-502"],
+        jobs: [],
+        pools: ["ula-501b", "ula-501c", "ula-502"],
+        workerInfo: [
+          { Name: "worker-assigned", Pools: ["ula-501b"], Stat: 1 },
+          { Name: "worker-unassigned", Pools: ["general"], Stat: 4 }
+        ],
+        workerInfoSettings: [
+          { Name: "worker-assigned", Pools: ["ula-501b"], Enable: true },
+          { Name: "worker-unassigned", Pools: ["general"], Enable: true }
+        ],
+        workerReports: [
+          {
+            workerName: "worker-unassigned",
+            reports: [
+              {
+                Date: "2026-03-17T12:25:00Z",
+                Message: "Fatal task exception",
+                Type: "Error"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        capturedAt: "2026-03-17T12:30:00Z",
+        failedJobsLookbackHours: 12,
+        pollIntervalSeconds: 15,
+        roomKeys: ["ula-501b", "ula-501c", "ula-502"],
+        source: "live",
+        stale: false,
+        workerIssuesLookbackMinutes: 30
+      }
+    );
+
+    expect(result.summary.totals.total).toBe(1);
+    expect(result.summary.totals.rendering).toBe(1);
+    expect(result.summary.totals.stalled).toBe(0);
+    expect(result.roomsResponse.unassignedWorkersCount).toBe(0);
+    expect(result.snapshot.workerIssues).toEqual([]);
   });
 });

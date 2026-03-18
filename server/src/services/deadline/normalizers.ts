@@ -385,9 +385,7 @@ function createRoomSummaries(
 
   return {
     roomSummaries,
-    unassignedWorkersCount: assignments.filter(
-      (assignment) => assignment.source === "unassigned" && !assignment.disabled
-    ).length
+    unassignedWorkersCount: 0
   };
 }
 
@@ -488,13 +486,17 @@ function normalizeWorkerIssues(
 
     const assignment = assignmentsByName.get(workerName.toLowerCase());
 
+    if (!assignment || assignment.source === "unassigned") {
+      continue;
+    }
+
     issues.push({
-      disabled: assignment?.disabled ?? false,
+      disabled: assignment.disabled,
       errorCount: recentErrors.length,
       lastErrorAt: recentErrors[0]?.timestamp ?? null,
       lastErrorMessage: recentErrors[0]?.message ?? null,
       level: recentErrors.length >= 3 ? "critical" : "warning",
-      roomKey: assignment?.roomKey ?? null,
+      roomKey: assignment.roomKey,
       workerName
     });
   }
@@ -528,7 +530,9 @@ function buildSummary(
   stale: boolean
 ): FarmOverviewSummary {
   const totals = totalsFromAssignments(
-    assignments.filter((assignment) => !assignment.disabled)
+    assignments.filter(
+      (assignment) => !assignment.disabled && assignment.source !== "unassigned"
+    )
   );
   const jobsTotals = countJobsByStatus(jobs);
 
