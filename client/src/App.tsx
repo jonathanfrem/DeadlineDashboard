@@ -56,7 +56,7 @@ const workerStatusColors: Record<keyof WorkerStatusTotals, string> = {
 
 const dashboardMeta = {
   madeBy: "Jonathan Fremstad",
-  version: "v0.1.1"
+  version: "v0.1.2"
 };
 const ISSUE_ROWS_PER_PAGE = 4;
 const ISSUE_PAGE_ROTATION_MS = 5_000;
@@ -277,15 +277,7 @@ function RoomsPanel({
     <section className={compact ? "panel rooms-panel compact" : "panel rooms-panel"}>
       <div className="panel-header">
         <div>
-          <span className="panel-kicker">Rooms</span>
           <h2>Room and pool availability</h2>
-        </div>
-        <div className="panel-summary">
-          <span>{rooms.length} configured rooms</span>
-          <strong>
-            {unassignedWorkersCount} unassigned worker
-            {unassignedWorkersCount === 1 ? "" : "s"}
-          </strong>
         </div>
       </div>
       <div className={compact ? "room-grid compact" : "room-grid"}>
@@ -398,18 +390,20 @@ function WorkerIssuesPanel({
 
   return (
     <section className="panel service-panel">
-      <div className="panel-header">
-        <div>
+      <div className="panel-header issues-header">
+        <div className="issues-header-copy">
           <span className="panel-kicker"></span>
           <h2>Machines needing attention</h2>
-          <p className="panel-caption">
-        Recent worker errors seen in the last {lookbackMinutes} minutes.
-      </p>
         </div>
-        <strong>{issues.length}</strong>
-        
+        <strong className="issues-total-count">{issues.length}</strong>
+        <p className="panel-caption issues-caption">
+          Recent worker errors seen in the last {lookbackMinutes} minutes.
+        </p>
+        <span className="issues-page-count">
+          {pageCount > 1 ? `Page ${pageIndex + 1}/${pageCount}` : "Page 1/1"}
+        </span>
       </div>
-      
+
       {issues.length === 0 ? (
         <div className="issues-empty">
           <p>No recent worker errors were found in the current lookback window.</p>
@@ -436,18 +430,7 @@ function WorkerIssuesPanel({
               </article>
             ))}
           </div>
-          <div className="issues-pagination">
-            {pageCount > 1 ? (
-              <span>
-                Page {pageIndex + 1}/{pageCount}
-              </span>
-            ) : (
-              <span>Page 1/1</span>
-            )}
-            <span>
-              {issues.length} machine{issues.length === 1 ? "" : "s"} total
-            </span>
-          </div>
+          
         </>
       )}
     </section>
@@ -663,12 +646,13 @@ export default function App() {
           <div>
             <span className="panel-kicker"></span>
             <h1>Deadline Farm Status</h1>
-            <p>
-              Updated {formatDateTime(dashboard.capturedAt)}. Polling every{" "}
-              {health.cache.pollIntervalSeconds}s.
-            </p>
+            
           </div>
+          
           <div className="topbar-actions">
+            <p>
+              Updated {formatDateTime(dashboard.capturedAt)}
+            </p>
             <StatusBadge tone={sourceTone} value={dashboard.summary.isStale ? "Stale" : dashboard.source} />
             <StatusBadge
               tone={health.deadline.reachable ? "success" : "danger"}
@@ -698,51 +682,51 @@ export default function App() {
           </section>
         ) : null}
 
-        <section className="metrics-grid">
-          <MetricCard
-            accent="green"
-            label="Rendering Workers"
-            meta={`${dashboard.summary.onlineWorkers} online`}
-            value={formatNumber(dashboard.summary.totals.rendering)}
-          />
-          <MetricCard
-            accent="slate"
-            label="Idle Capacity"
-            meta="Ready to pick up work"
-            value={formatNumber(dashboard.summary.totals.idle)}
-          />
-          <MetricCard
-            accent="yellow"
-            label="Queued Jobs"
-            meta={`${dashboard.summary.jobs.pending} pending`}
-            value={formatNumber(dashboard.summary.jobs.queued)}
-          />
-          <MetricCard
-            accent="red"
-            label="Failed Jobs"
-            meta="Needs operator review"
-            value={formatNumber(dashboard.summary.jobs.failed)}
-          />
-          <MetricCard
-            accent="red"
-            label="Stalled Workers"
-            meta={`${dashboard.summary.roomsWithIssues.length} rooms with issues`}
-            value={formatNumber(dashboard.summary.totals.stalled)}
-          />
-        </section>
-
         <section className="content-grid">
-          <JobsTable
-            jobs={dashboard.jobs}
-            onFilterChange={setSelectedFilter}
-            selectedFilter={selectedFilter}
-          />
+          <div className="primary-column">
+            <section className="metrics-grid">
+              <MetricCard
+                accent="green"
+                label="Rendering Workers"
+                meta={`${dashboard.summary.onlineWorkers} online`}
+                value={formatNumber(dashboard.summary.totals.rendering)}
+              />
+              <MetricCard
+                accent="slate"
+                label="Idle Capacity"
+                meta="Ready to pick up work"
+                value={formatNumber(dashboard.summary.totals.idle)}
+              />
+              <MetricCard
+                accent="yellow"
+                label="Queued Jobs"
+                meta={`${dashboard.summary.jobs.pending} pending`}
+                value={formatNumber(dashboard.summary.jobs.queued)}
+              />
+              <MetricCard
+                accent="red"
+                label="Failed Jobs"
+                meta="Needs operator review"
+                value={formatNumber(dashboard.summary.jobs.failed)}
+              />
+              <MetricCard
+                accent="red"
+                label="Stalled Workers"
+                meta={`${dashboard.summary.roomsWithIssues.length} rooms with issues`}
+                value={formatNumber(dashboard.summary.totals.stalled)}
+              />
+            </section>
 
+            <JobsTable
+              jobs={dashboard.jobs}
+              onFilterChange={setSelectedFilter}
+              selectedFilter={selectedFilter}
+            />
+          </div>
           <div className="side-column">
             <section className="panel service-panel">
               <div className="panel-header">
                 <div>
-                  <span className="panel-kicker">Farm status</span>
                   <h2>Worker breakdown</h2>
                 </div>
                 <strong>{formatNumber(dashboard.summary.totals.total)}</strong>
