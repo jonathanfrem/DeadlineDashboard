@@ -48,6 +48,68 @@ export class DeadlineApiClient {
     };
   }
 
+  private coerceRecords(value: unknown): DeadlineRecord[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value.filter(
+      (entry): entry is DeadlineRecord =>
+        typeof entry === "object" && entry !== null && !Array.isArray(entry)
+    );
+  }
+
+  private parseWorkerReportsPayload(
+    workerName: string,
+    payload: unknown
+  ): WorkerReportListing[] {
+    const directReports = this.coerceRecords(payload);
+
+    if (directReports.length > 0) {
+      return [{ reports: directReports, workerName }];
+    }
+
+    if (typeof payload !== "object" || payload === null || Array.isArray(payload)) {
+      return [];
+    }
+
+    const payloadRecord = payload as Record<string, unknown>;
+    const nestedDirectReports = this.coerceRecords(
+      payloadRecord.Reports ?? payloadRecord.WorkerReports ?? payloadRecord.results
+    );
+
+    if (nestedDirectReports.length > 0) {
+      return [{ reports: nestedDirectReports, workerName }];
+    }
+
+    return Object.entries(payloadRecord).flatMap(([entryKey, entryValue]) => {
+      const reports = this.coerceRecords(entryValue);
+
+      if (reports.length > 0) {
+        return [{ reports, workerName: entryKey }];
+      }
+
+      if (
+        typeof entryValue === "object" &&
+        entryValue !== null &&
+        !Array.isArray(entryValue)
+      ) {
+        const nestedEntry = entryValue as Record<string, unknown>;
+        const nestedReports = this.coerceRecords(
+          nestedEntry.Reports ??
+            nestedEntry.WorkerReports ??
+            nestedEntry.results
+        );
+
+        if (nestedReports.length > 0) {
+          return [{ reports: nestedReports, workerName: entryKey }];
+        }
+      }
+
+      return [];
+    });
+  }
+
   private async getWorkerReports(
     workerInfo: DeadlineRecord[],
     workerInfoSettings: DeadlineRecord[]
@@ -65,14 +127,16 @@ export class DeadlineApiClient {
     }
 
     const reportResponses = await Promise.allSettled(
-      workerNames.map(async (workerName) => ({
-        reports: await this.getRecords(getWorkerReportsEndpoint(workerName)),
-        workerName
-      }))
+      workerNames.map(async (workerName) =>
+        this.parseWorkerReportsPayload(
+          workerName,
+          await this.getJson(getWorkerReportsEndpoint(workerName))
+        )
+      )
     );
 
     return reportResponses.flatMap((result) =>
-      result.status === "fulfilled" ? [result.value] : []
+      result.status === "fulfilled" ? result.value : []
     );
   }
 

@@ -425,6 +425,20 @@ function getReportMessage(report: DeadlineRecord): string | null {
 }
 
 function isErrorReport(report: DeadlineRecord): boolean {
+  const numericReportType = extractNumber(
+    report,
+    "Type",
+    "ReportType",
+    ["Props", "Type"],
+    ["Props", "ReportType"],
+    ["Info", "Type"],
+    ["Info", "ReportType"]
+  );
+
+  if (numericReportType === 1) {
+    return true;
+  }
+
   const searchableFields = [
     extractString(
       report,
@@ -455,6 +469,7 @@ function isErrorReport(report: DeadlineRecord): boolean {
 
 function normalizeWorkerIssues(
   reportsByWorker: Map<string, DeadlineRecord[]>,
+  workerInfo: DeadlineRecord[],
   assignments: WorkerAssignment[],
   capturedAt: string,
   lookbackMinutes: number
@@ -463,8 +478,17 @@ function normalizeWorkerIssues(
   const assignmentsByName = new Map(
     assignments.map((assignment) => [assignment.name.toLowerCase(), assignment])
   );
+  const workerInfoByName = new Map(
+    workerInfo
+      .map((record) => {
+        const workerName = getWorkerName(record);
+        return workerName ? [workerName.toLowerCase(), record] : null;
+      })
+      .filter((entry): entry is [string, DeadlineRecord] => entry !== null)
+  );
 
   const issues: WorkerIssue[] = [];
+  const issueNames = new Set<string>();
 
   for (const [workerName, reports] of reportsByWorker.entries()) {
     const recentErrors = reports
@@ -498,6 +522,45 @@ function normalizeWorkerIssues(
       level: recentErrors.length >= 3 ? "critical" : "warning",
       roomKey: assignment.roomKey,
       workerName
+    });
+    issueNames.add(workerName.toLowerCase());
+  }
+
+  for (const assignment of assignments) {
+    if (assignment.source === "unassigned" || issueNames.has(assignment.name.toLowerCase())) {
+      continue;
+    }
+
+    const info = workerInfoByName.get(assignment.name.toLowerCase());
+
+    if (!info) {
+      continue;
+    }
+
+    const taskFailures = extractNumber(info, "TskFail", ["Info", "TskFail"]);
+
+    if (taskFailures === null || taskFailures <= 0) {
+      continue;
+    }
+
+    const fallbackTimestamp =
+      extractIsoDate(info, "LastRenderTime", ["Info", "LastRenderTime"]) ??
+      extractIsoDate(info, "StatDate", ["Info", "StatDate"]);
+
+    if (!fallbackTimestamp || Date.parse(fallbackTimestamp) < lookbackThresholdMs) {
+      continue;
+    }
+
+    issues.push({
+      disabled: assignment.disabled,
+      errorCount: taskFailures,
+      lastErrorAt: fallbackTimestamp,
+      lastErrorMessage:
+        extractString(info, "Msg", ["Info", "Msg"]) ||
+        `Worker reported ${taskFailures} task failure${taskFailures === 1 ? "" : "s"}.`,
+      level: taskFailures >= 3 ? "critical" : "warning",
+      roomKey: assignment.roomKey,
+      workerName: assignment.name
     });
   }
 
@@ -585,6 +648,7 @@ export function normalizeDeadlineData(
         workerReport.reports
       ])
     ),
+    responses.workerInfo,
     workerAssignments,
     capturedAt,
     config.workerIssuesLookbackMinutes

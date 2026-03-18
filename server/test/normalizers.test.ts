@@ -379,6 +379,100 @@ describe("normalizeDeadlineData", () => {
     ]);
   });
 
+  it("recognizes numeric Deadline worker report error types", () => {
+    const result = normalizeDeadlineData(
+      {
+        groups: ["ula-501b", "ula-501c", "ula-502"],
+        jobs: [],
+        pools: ["ula-501b", "ula-501c", "ula-502"],
+        workerInfo: [{ Name: "worker-a", Pools: ["ula-501b"], Stat: 1 }],
+        workerInfoSettings: [{ Name: "worker-a", Pools: ["ula-501b"], Enable: true }],
+        workerReports: [
+          {
+            workerName: "worker-a",
+            reports: [
+              {
+                Date: "2026-03-17T12:25:00Z",
+                Details: "Worker threw a render error",
+                Type: 1
+              }
+            ]
+          }
+        ]
+      },
+      {
+        capturedAt: "2026-03-17T12:30:00Z",
+        failedJobsLookbackHours: 12,
+        pollIntervalSeconds: 15,
+        roomKeys: ["ula-501b", "ula-501c", "ula-502"],
+        source: "live",
+        stale: false,
+        workerIssuesLookbackMinutes: 30
+      }
+    );
+
+    expect(result.snapshot.workerIssues).toEqual([
+      expect.objectContaining({
+        errorCount: 1,
+        roomKey: "ula-501b",
+        workerName: "worker-a"
+      })
+    ]);
+  });
+
+  it("falls back to TskFail from worker info when reports are unavailable", () => {
+    const result = normalizeDeadlineData(
+      {
+        groups: ["ula-501b", "ula-501c", "ula-502"],
+        jobs: [],
+        pools: ["ula-501b", "ula-501c", "ula-502"],
+        workerInfo: [
+          {
+            Info: {
+              LastRenderTime: "2026-03-17T12:25:00Z",
+              Msg: "",
+              Name: "worker-a",
+              Stat: 2,
+              TskFail: 4
+            },
+            Settings: {
+              Name: "worker-a",
+              Pools: ["ula-501b"]
+            }
+          }
+        ],
+        workerInfoSettings: [
+          {
+            Settings: {
+              Enable: true,
+              Name: "worker-a",
+              Pools: ["ula-501b"]
+            }
+          }
+        ],
+        workerReports: []
+      },
+      {
+        capturedAt: "2026-03-17T12:30:00Z",
+        failedJobsLookbackHours: 12,
+        pollIntervalSeconds: 15,
+        roomKeys: ["ula-501b", "ula-501c", "ula-502"],
+        source: "live",
+        stale: false,
+        workerIssuesLookbackMinutes: 30
+      }
+    );
+
+    expect(result.snapshot.workerIssues).toEqual([
+      expect.objectContaining({
+        errorCount: 4,
+        level: "critical",
+        roomKey: "ula-501b",
+        workerName: "worker-a"
+      })
+    ]);
+  });
+
   it("does not count or surface unassigned workers anywhere", () => {
     const result = normalizeDeadlineData(
       {
