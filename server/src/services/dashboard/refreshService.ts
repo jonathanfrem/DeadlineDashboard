@@ -1,9 +1,11 @@
 import type {
   DashboardRoomsResponse,
   DashboardSnapshot,
+  DashboardViewResponse,
   FarmOverviewSummary,
   HealthCheckResponse,
-  JobRow
+  JobRow,
+  WorkerIssue
 } from "@deadline-dashboard/contracts";
 import type { AppConfig } from "../../config/env.js";
 import { CacheRepository, type DashboardCacheBundle } from "../../db/cacheRepository.js";
@@ -15,6 +17,24 @@ export interface DashboardDataPayload {
   roomsResponse: DashboardRoomsResponse;
   snapshot: DashboardSnapshot;
   summary: FarmOverviewSummary;
+  workerIssues: WorkerIssue[];
+  workerIssuesLookbackMinutes: number;
+}
+
+export function toDashboardViewResponse(
+  payload: DashboardDataPayload
+): DashboardViewResponse {
+  return {
+    capturedAt: payload.snapshot.capturedAt,
+    jobs: payload.jobs,
+    poolValidationWarnings: payload.roomsResponse.poolValidationWarnings,
+    rooms: payload.roomsResponse.rooms,
+    source: payload.snapshot.source,
+    summary: payload.summary,
+    unassignedWorkersCount: payload.roomsResponse.unassignedWorkersCount,
+    workerIssues: payload.workerIssues,
+    workerIssuesLookbackMinutes: payload.workerIssuesLookbackMinutes
+  };
 }
 
 export class DashboardRefreshService {
@@ -114,11 +134,17 @@ export class DashboardRefreshService {
         summary: {
           ...bundle.summary,
           isStale: false
-        }
+        },
+        workerIssues: bundle.snapshot.workerIssues ?? [],
+        workerIssuesLookbackMinutes: this.config.workerIssuesLookbackMinutes
       };
     }
 
-    return markSnapshotAsStale(bundle.snapshot, bundle.jobs, bundle.rooms);
+    return {
+      ...markSnapshotAsStale(bundle.snapshot, bundle.jobs, bundle.rooms),
+      workerIssues: bundle.snapshot.workerIssues ?? [],
+      workerIssuesLookbackMinutes: this.config.workerIssuesLookbackMinutes
+    };
   }
 
   private async refreshFromDeadline(
@@ -130,9 +156,11 @@ export class DashboardRefreshService {
       const responses = await this.deadlineClient.fetchCurrentState();
       const normalized = normalizeDeadlineData(responses, {
         pollIntervalSeconds: this.config.pollIntervalSeconds,
+        failedJobsLookbackHours: this.config.failedJobsLookbackHours,
         roomKeys: this.config.roomKeys,
         source: "live",
-        stale: false
+        stale: false,
+        workerIssuesLookbackMinutes: this.config.workerIssuesLookbackMinutes
       });
       const fetchedAt = normalized.snapshot.capturedAt;
       const expiresAt = new Date(
@@ -157,7 +185,9 @@ export class DashboardRefreshService {
         jobs: normalized.jobs,
         roomsResponse: normalized.roomsResponse,
         snapshot: normalized.snapshot,
-        summary: normalized.summary
+        summary: normalized.summary,
+        workerIssues: normalized.snapshot.workerIssues,
+        workerIssuesLookbackMinutes: this.config.workerIssuesLookbackMinutes
       };
     } catch (error) {
       this.lastError =
@@ -171,4 +201,3 @@ export class DashboardRefreshService {
     }
   }
 }
-

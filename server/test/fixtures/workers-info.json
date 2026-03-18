@@ -12,6 +12,13 @@
     "Stat": 2
   },
   {
+    "Name": "worker-501b-disabled",
+    "Pools": ["ula-501b"],
+    "Groups": ["ula-501b"],
+    "Stat": 2,
+    "State": "Disabled (Idle)"
+  },
+  {
     "Name": "worker-501c-01",
     "Pools": ["misc"],
     "Groups": ["ula-501c"],
@@ -36,4 +43,3 @@
     "Stat": 17
   }
 ]
-

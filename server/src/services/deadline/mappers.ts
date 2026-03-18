@@ -6,6 +6,8 @@ import type {
 } from "@deadline-dashboard/contracts";
 import type { DeadlineRecord, WorkerAssignment } from "./types.js";
 
+type KeyPath = readonly string[];
+
 const workerStatusBuckets: (keyof WorkerStatusTotals)[] = [
   "rendering",
   "startingJob",
@@ -48,12 +50,35 @@ export function createEmptyJobTotals(): FarmJobTotals {
   };
 }
 
+function getValueByPath(
+  record: DeadlineRecord,
+  path: string | KeyPath
+): unknown {
+  const segments = Array.isArray(path) ? path : [path];
+  let currentValue: unknown = record;
+
+  for (const segment of segments) {
+    if (
+      typeof currentValue !== "object" ||
+      currentValue === null ||
+      Array.isArray(currentValue) ||
+      !(segment in currentValue)
+    ) {
+      return undefined;
+    }
+
+    currentValue = (currentValue as Record<string, unknown>)[segment];
+  }
+
+  return currentValue;
+}
+
 export function extractString(
   record: DeadlineRecord,
-  ...keys: string[]
+  ...keys: Array<string | KeyPath>
 ): string | null {
   for (const key of keys) {
-    const value = record[key];
+    const value = getValueByPath(record, key);
 
     if (typeof value === "string" && value.trim() !== "") {
       return value.trim();
@@ -65,10 +90,10 @@ export function extractString(
 
 export function extractNumber(
   record: DeadlineRecord,
-  ...keys: string[]
+  ...keys: Array<string | KeyPath>
 ): number | null {
   for (const key of keys) {
-    const value = record[key];
+    const value = getValueByPath(record, key);
 
     if (typeof value === "number" && Number.isFinite(value)) {
       return value;
@@ -88,10 +113,10 @@ export function extractNumber(
 
 export function extractStringArray(
   record: DeadlineRecord,
-  ...keys: string[]
+  ...keys: Array<string | KeyPath>
 ): string[] {
   for (const key of keys) {
-    const value = record[key];
+    const value = getValueByPath(record, key);
 
     if (Array.isArray(value)) {
       const normalized = value
@@ -117,7 +142,7 @@ export function extractStringArray(
 
 export function extractIsoDate(
   record: DeadlineRecord,
-  ...keys: string[]
+  ...keys: Array<string | KeyPath>
 ): string | null {
   const rawValue = extractString(record, ...keys);
 
@@ -129,14 +154,137 @@ export function extractIsoDate(
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
+export function extractDurationSeconds(
+  record: DeadlineRecord,
+  ...keys: Array<string | KeyPath>
+): number | null {
+  for (const key of keys) {
+    const value = getValueByPath(record, key);
+
+    if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+      return value;
+    }
+
+    if (typeof value !== "string") {
+      continue;
+    }
+
+    const normalized = value.trim();
+
+    if (!normalized) {
+      continue;
+    }
+
+    if (/^\d+(?:\.\d+)?$/.test(normalized)) {
+      return Number.parseFloat(normalized);
+    }
+
+    const colonParts = normalized.split(":").map((part) => Number.parseFloat(part));
+
+    if (
+      colonParts.length >= 2 &&
+      colonParts.every((part) => Number.isFinite(part) && part >= 0)
+    ) {
+      let multiplier = 1;
+      let totalSeconds = 0;
+
+      for (const part of [...colonParts].reverse()) {
+        totalSeconds += part * multiplier;
+        multiplier *= 60;
+      }
+
+      return totalSeconds;
+    }
+
+    const unitMatches = Array.from(
+      normalized.matchAll(/(\d+(?:\.\d+)?)\s*(d|h|m|s)/gi)
+    );
+
+    if (unitMatches.length > 0) {
+      let totalSeconds = 0;
+
+      for (const match of unitMatches) {
+        const amount = Number.parseFloat(match[1]);
+        const unit = match[2].toLowerCase();
+
+        if (unit === "d") {
+          totalSeconds += amount * 86_400;
+        } else if (unit === "h") {
+          totalSeconds += amount * 3_600;
+        } else if (unit === "m") {
+          totalSeconds += amount * 60;
+        } else if (unit === "s") {
+          totalSeconds += amount;
+        }
+      }
+
+      return totalSeconds;
+    }
+  }
+
+  return null;
+}
+
+export function extractBoolean(
+  record: DeadlineRecord,
+  ...keys: Array<string | KeyPath>
+): boolean | null {
+  for (const key of keys) {
+    const value = getValueByPath(record, key);
+
+    if (typeof value === "boolean") {
+      return value;
+    }
+
+    if (typeof value === "number") {
+      if (value === 1) {
+        return true;
+      }
+
+      if (value === 0) {
+        return false;
+      }
+    }
+
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+
+      if (["true", "yes", "on", "enabled", "disabled", "1", "0", "false", "no", "off"].includes(normalized)) {
+        if (["true", "yes", "on", "enabled", "1"].includes(normalized)) {
+          return true;
+        }
+
+        if (["false", "no", "off", "disabled", "0"].includes(normalized)) {
+          return false;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
 export function getWorkerName(record: DeadlineRecord): string | null {
-  return extractString(record, "Name", "SlaveName", "WorkerName");
+  return extractString(
+    record,
+    "Name",
+    "SlaveName",
+    "WorkerName",
+    ["Info", "Name"],
+    ["Settings", "Name"]
+  );
 }
 
 export function getWorkerStatusBucket(
   record: DeadlineRecord
 ): keyof WorkerStatusTotals {
-  const statusCode = extractNumber(record, "Stat", "SlaveStatus");
+  const statusCode = extractNumber(
+    record,
+    "Stat",
+    "SlaveStatus",
+    ["Info", "Stat"],
+    ["Info", "SlaveStatus"]
+  );
 
   switch (statusCode) {
     case 1:
@@ -159,7 +307,7 @@ export function getJobStatus(record: DeadlineRecord): {
   statusCode: number | null;
 } {
   const statusCode = extractNumber(record, "Stat", "JobStatus");
-  const renderingChunks = extractNumber(record, "RenderingChunks");
+  const renderingChunks = extractNumber(record, "RenderingChunks", "RenderChunks");
 
   if (statusCode === 4) {
     return { status: "Failed", statusCode };
@@ -191,7 +339,8 @@ export function countActiveWorkers(record: DeadlineRecord): number | null {
     record,
     "SlaveNames",
     "WorkerNames",
-    "MachineNames"
+    "MachineNames",
+    ["Props", "SlaveNames"]
   );
 
   if (slaveNames.length > 0) {
@@ -206,14 +355,23 @@ export function normalizeProgressPercent(record: DeadlineRecord): number | null 
     record,
     "CompletedPercentage",
     "Progress",
-    "ProgressPercent"
+    "ProgressPercent",
+    "Prog",
+    ["Props", "Prog"]
   );
 
-  if (value === null) {
-    return null;
+  if (value !== null) {
+    return Math.max(0, Math.min(100, value));
   }
 
-  return Math.max(0, Math.min(100, value));
+  const completedChunks = extractNumber(record, "CompletedChunks");
+  const taskCount = extractNumber(record, ["Props", "Tasks"], "Tasks");
+
+  if (completedChunks !== null && taskCount !== null && taskCount > 0) {
+    return Math.max(0, Math.min(100, (completedChunks / taskCount) * 100));
+  }
+
+  return null;
 }
 
 export function sortJobs(jobs: JobRow[]): JobRow[] {
@@ -294,4 +452,3 @@ export function calculateUtilization(totals: WorkerStatusTotals): number {
 
   return Number((totals.rendering / totals.total).toFixed(4));
 }
-

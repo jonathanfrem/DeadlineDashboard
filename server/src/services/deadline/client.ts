@@ -1,5 +1,10 @@
-import { DEADLINE_ENDPOINTS } from "./queries.js";
-import type { DeadlineApiResponses, DeadlineRecord } from "./types.js";
+import { getWorkerName } from "./mappers.js";
+import { DEADLINE_ENDPOINTS, getWorkerReportsEndpoint } from "./queries.js";
+import type {
+  DeadlineApiResponses,
+  DeadlineRecord,
+  WorkerReportListing
+} from "./types.js";
 
 export class DeadlineApiError extends Error {
   constructor(message: string, readonly status?: number) {
@@ -23,13 +28,52 @@ export class DeadlineApiClient {
   }
 
   async fetchCurrentState(): Promise<DeadlineApiResponses> {
+    const [groups, jobs, pools, workerInfo, workerInfoSettings] = await Promise.all([
+      this.getStringArray(DEADLINE_ENDPOINTS.groups),
+      this.getRecords(DEADLINE_ENDPOINTS.jobs),
+      this.getStringArray(DEADLINE_ENDPOINTS.pools),
+      this.getRecords(DEADLINE_ENDPOINTS.workerInfo),
+      this.getRecords(DEADLINE_ENDPOINTS.workerInfoSettings)
+    ]);
+
+    const workerReports = await this.getWorkerReports(workerInfo, workerInfoSettings);
+
     return {
-      groups: await this.getStringArray(DEADLINE_ENDPOINTS.groups),
-      jobs: await this.getRecords(DEADLINE_ENDPOINTS.jobs),
-      pools: await this.getStringArray(DEADLINE_ENDPOINTS.pools),
-      workerInfo: await this.getRecords(DEADLINE_ENDPOINTS.workerInfo),
-      workerInfoSettings: await this.getRecords(DEADLINE_ENDPOINTS.workerInfoSettings)
+      groups,
+      jobs,
+      pools,
+      workerInfo,
+      workerInfoSettings,
+      workerReports
     };
+  }
+
+  private async getWorkerReports(
+    workerInfo: DeadlineRecord[],
+    workerInfoSettings: DeadlineRecord[]
+  ): Promise<WorkerReportListing[]> {
+    const workerNames = Array.from(
+      new Set(
+        [...workerInfo, ...workerInfoSettings]
+          .map((record) => getWorkerName(record))
+          .filter((workerName): workerName is string => Boolean(workerName))
+      )
+    );
+
+    if (workerNames.length === 0) {
+      return [];
+    }
+
+    const reportResponses = await Promise.allSettled(
+      workerNames.map(async (workerName) => ({
+        reports: await this.getRecords(getWorkerReportsEndpoint(workerName)),
+        workerName
+      }))
+    );
+
+    return reportResponses.flatMap((result) =>
+      result.status === "fulfilled" ? [result.value] : []
+    );
   }
 
   private async getStringArray(pathname: string): Promise<string[]> {
@@ -102,4 +146,3 @@ export class DeadlineApiClient {
     }
   }
 }
-

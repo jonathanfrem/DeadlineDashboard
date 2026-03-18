@@ -44,12 +44,14 @@ export interface RoomSummary {
   displayName: string;
   poolName: string;
   totals: WorkerStatusTotals;
+  disabledWorkers: number;
   utilization: number;
   health: RoomHealth;
   unmatchedWorkerCount: number;
 }
 
 export interface JobRow {
+  comment: string | null;
   jobId: string;
   name: string;
   user: string | null;
@@ -57,17 +59,31 @@ export interface JobRow {
   statusCode: number | null;
   progressPercent: number | null;
   submittedAt: string | null;
+  startedAt: string | null;
   pool: string | null;
   group: string | null;
   renderingChunks: number | null;
   activeWorkersCount: number | null;
   estimatedCompletionAt: string | null;
+  runtimeSeconds: number | null;
+  estimatedRemainingSeconds: number | null;
+}
+
+export interface WorkerIssue {
+  disabled: boolean;
+  errorCount: number;
+  lastErrorAt: string | null;
+  lastErrorMessage: string | null;
+  level: "critical" | "warning";
+  roomKey: string | null;
+  workerName: string;
 }
 
 export interface DashboardSnapshot {
   summary: FarmOverviewSummary;
   rooms: RoomSummary[];
   jobs: JobRow[];
+  workerIssues: WorkerIssue[];
   capturedAt: string;
   source: DashboardSource;
 }
@@ -78,6 +94,18 @@ export interface DashboardRoomsResponse {
   source: DashboardSource;
   unassignedWorkersCount: number;
   poolValidationWarnings: string[];
+}
+
+export interface DashboardViewResponse {
+  capturedAt: string;
+  jobs: JobRow[];
+  poolValidationWarnings: string[];
+  rooms: RoomSummary[];
+  source: DashboardSource;
+  summary: FarmOverviewSummary;
+  unassignedWorkersCount: number;
+  workerIssues: WorkerIssue[];
+  workerIssuesLookbackMinutes: number;
 }
 
 export interface HealthCheckResponse {
@@ -102,4 +130,3 @@ export interface HealthCheckResponse {
     hasSnapshot: boolean;
   };
 }
-

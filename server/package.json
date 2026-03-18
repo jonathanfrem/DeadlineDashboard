@@ -7,13 +7,14 @@
     "build": "tsc -p tsconfig.build.json",
     "db:migrate": "tsx src/db/migrate.ts",
     "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
+    "start": "NODE_ENV=production node dist/index.js",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@deadline-dashboard/contracts": "0.1.0",
     "better-sqlite3": "^11.7.0",
+    "dotenv": "^17.3.1",
     "express": "^4.21.2"
   },
   "devDependencies": {

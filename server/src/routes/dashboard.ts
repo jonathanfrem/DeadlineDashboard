@@ -1,5 +1,8 @@
 import { Router } from "express";
-import type { DashboardRefreshService } from "../services/dashboard/refreshService.js";
+import {
+  toDashboardViewResponse,
+  type DashboardRefreshService
+} from "../services/dashboard/refreshService.js";
 
 export function createDashboardRouter(
   refreshService: DashboardRefreshService
@@ -25,6 +28,10 @@ export function createDashboardRouter(
     response.json(response.locals.dashboardData.summary);
   });
 
+  router.get("/", (_request, response) => {
+    response.json(toDashboardViewResponse(response.locals.dashboardData));
+  });
+
   router.get("/jobs", (_request, response) => {
     response.json(response.locals.dashboardData.jobs);
   });
@@ -35,4 +42,3 @@ export function createDashboardRouter(
 
   return router;
 }
-

@@ -67,13 +67,17 @@ function createRefreshServiceStub(): DashboardRefreshService {
         jobs: [
           {
             activeWorkersCount: 1,
+            comment: "Shot 010 beauty pass",
             estimatedCompletionAt: null,
+            estimatedRemainingSeconds: 900,
             group: "ula-501b",
             jobId: "job-1",
             name: "Render A",
             pool: "ula-501b",
             progressPercent: 25,
             renderingChunks: 1,
+            runtimeSeconds: 300,
+            startedAt: "2026-03-17T12:05:00.000Z",
             status: "Rendering",
             statusCode: 1,
             submittedAt: "2026-03-17T12:00:00.000Z",
@@ -85,6 +89,7 @@ function createRefreshServiceStub(): DashboardRefreshService {
           poolValidationWarnings: [],
           rooms: [
             {
+              disabledWorkers: 0,
               displayName: "ula-501b",
               health: "green",
               poolName: "ula-501b",
@@ -201,13 +206,18 @@ describe("app routes", () => {
   });
 
   it("serves summary, jobs, and rooms with aligned capture headers", async () => {
+    const dashboardResponse = await invokeApp(app, "GET", "/api/dashboard");
     const summaryResponse = await invokeApp(app, "GET", "/api/dashboard/summary");
     const jobsResponse = await invokeApp(app, "GET", "/api/dashboard/jobs");
     const roomsResponse = await invokeApp(app, "GET", "/api/dashboard/rooms");
 
+    expect(dashboardResponse.statusCode).toBe(200);
     expect(summaryResponse.statusCode).toBe(200);
     expect(jobsResponse.statusCode).toBe(200);
     expect(roomsResponse.statusCode).toBe(200);
+    expect(
+      (dashboardResponse.body as { capturedAt: string }).capturedAt
+    ).toBe(summaryResponse.headers["x-dashboard-captured-at"]);
     expect(summaryResponse.headers["x-dashboard-captured-at"]).toBe(
       jobsResponse.headers["x-dashboard-captured-at"]
     );

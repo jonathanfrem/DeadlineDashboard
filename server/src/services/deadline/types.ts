@@ -14,11 +14,18 @@ export interface DeadlineApiResponses {
   pools: string[];
   workerInfo: DeadlineRecord[];
   workerInfoSettings: DeadlineRecord[];
+  workerReports: WorkerReportListing[];
+}
+
+export interface WorkerReportListing {
+  reports: DeadlineRecord[];
+  workerName: string;
 }
 
 export interface WorkerStatusAggregate extends WorkerStatusTotals {}
 
 export interface WorkerAssignment {
+  disabled: boolean;
   groups: string[];
   name: string;
   pools: string[];
@@ -35,4 +42,3 @@ export interface NormalizedDashboardData {
   unassignedWorkersCount: number;
   workerAssignments: WorkerAssignment[];
 }
-

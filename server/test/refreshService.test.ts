@@ -16,10 +16,14 @@ function createConfig(databasePath: string): AppConfig {
     databasePath,
     deadlineBaseUrl: "http://deadline.local",
     deadlineRequestTimeoutMs: 2_000,
+    deadlineTlsInsecure: false,
+    failedJobsLookbackHours: 12,
+    host: "127.0.0.1",
     pollIntervalSeconds: 15,
     port: 3001,
     roomKeys: ["ula-501b", "ula-501c", "ula-502"],
-    staleAfterSeconds: 45
+    staleAfterSeconds: 45,
+    workerIssuesLookbackMinutes: 30
   };
 }
 
@@ -45,7 +49,8 @@ function createFixtureResponses(): DeadlineApiResponses {
     workerInfoSettings: [
       { Name: "worker-a", Pool: "ula-501b" },
       { Name: "worker-b", Pool: "ula-501c" }
-    ]
+    ],
+    workerReports: []
   };
 }
 
@@ -152,4 +157,3 @@ describe("DashboardRefreshService", () => {
     db.close();
   });
 });
-

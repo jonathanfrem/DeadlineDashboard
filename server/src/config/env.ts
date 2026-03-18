@@ -4,10 +4,14 @@ export interface AppConfig {
   databasePath: string;
   deadlineBaseUrl: string | null;
   deadlineRequestTimeoutMs: number;
+  deadlineTlsInsecure: boolean;
+  failedJobsLookbackHours: number;
+  host: string;
   pollIntervalSeconds: number;
   port: number;
   roomKeys: string[];
   staleAfterSeconds: number;
+  workerIssuesLookbackMinutes: number;
 }
 
 function parsePositiveInt(
@@ -43,6 +47,26 @@ function parseRoomKeys(rawValue: string | undefined): string[] {
   return roomKeys.length > 0 ? roomKeys : defaultRoomKeys;
 }
 
+function parseBoolean(rawValue: string | undefined, fallback: boolean): boolean {
+  if (rawValue === undefined || rawValue.trim() === "") {
+    return fallback;
+  }
+
+  const normalized = rawValue.trim().toLowerCase();
+
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  throw new Error(
+    `Boolean value expected but received "${rawValue}" for DEADLINE_TLS_INSECURE.`
+  );
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return {
     databasePath: path.resolve(
@@ -55,6 +79,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       10_000,
       "DEADLINE_REQUEST_TIMEOUT_MS"
     ),
+    deadlineTlsInsecure: parseBoolean(env.DEADLINE_TLS_INSECURE, false),
+    failedJobsLookbackHours: parsePositiveInt(
+      env.FAILED_JOBS_LOOKBACK_HOURS,
+      12,
+      "FAILED_JOBS_LOOKBACK_HOURS"
+    ),
+    host: env.HOST?.trim() || "0.0.0.0",
     pollIntervalSeconds: parsePositiveInt(
       env.POLL_INTERVAL_SECONDS,
       15,
@@ -66,7 +97,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       env.STALE_AFTER_SECONDS,
       45,
       "STALE_AFTER_SECONDS"
+    ),
+    workerIssuesLookbackMinutes: parsePositiveInt(
+      env.WORKER_ISSUES_LOOKBACK_MINUTES,
+      30,
+      "WORKER_ISSUES_LOOKBACK_MINUTES"
     )
   };
 }
-

@@ -5,7 +5,8 @@ dist
 .env.local
 coverage
 server/data
+server/server/data
 *.db
 *.sqlite
 *.sqlite3
-
+docs

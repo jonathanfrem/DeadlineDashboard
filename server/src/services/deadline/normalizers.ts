@@ -3,7 +3,8 @@ import type {
   DashboardSnapshot,
   FarmOverviewSummary,
   JobRow,
-  RoomSummary
+  RoomSummary,
+  WorkerIssue
 } from "@deadline-dashboard/contracts";
 import { calculateRoomHealth } from "../../config/roomHealth.js";
 import {
@@ -11,6 +12,8 @@ import {
   countActiveWorkers,
   countJobsByStatus,
   createEmptyWorkerTotals,
+  extractBoolean,
+  extractDurationSeconds,
   extractIsoDate,
   extractNumber,
   extractString,
@@ -31,10 +34,12 @@ import type {
 
 interface NormalizerConfig {
   capturedAt?: string;
+  failedJobsLookbackHours: number;
   pollIntervalSeconds: number;
   roomKeys: string[];
   source: "cache" | "live";
   stale: boolean;
+  workerIssuesLookbackMinutes: number;
 }
 
 function mergeWorkerRecords(
@@ -55,13 +60,108 @@ function mergeWorkerRecords(
     const name = getWorkerName(info) ?? "unknown-worker";
     const settings = settingsByName.get(name.toLowerCase()) ?? {};
     const pools = Array.from(
-      new Set([...extractStringArray(info, "Pools", "Pool"), ...extractStringArray(settings, "Pools", "Pool")])
+      new Set([
+        ...extractStringArray(
+          info,
+          "Pools",
+          "Pool",
+          ["Info", "Pools"],
+          ["Info", "Pool"],
+          ["Settings", "Pools"],
+          ["Settings", "Pool"]
+        ),
+        ...extractStringArray(
+          settings,
+          "Pools",
+          "Pool",
+          ["Info", "Pools"],
+          ["Info", "Pool"],
+          ["Settings", "Pools"],
+          ["Settings", "Pool"]
+        )
+      ])
     );
     const groups = Array.from(
-      new Set([...extractStringArray(info, "Groups", "Group"), ...extractStringArray(settings, "Groups", "Group")])
+      new Set([
+        ...extractStringArray(
+          info,
+          "Groups",
+          "Group",
+          "Grps",
+          ["Info", "Groups"],
+          ["Info", "Group"],
+          ["Info", "Grps"],
+          ["Settings", "Groups"],
+          ["Settings", "Group"],
+          ["Settings", "Grps"]
+        ),
+        ...extractStringArray(
+          settings,
+          "Groups",
+          "Group",
+          "Grps",
+          ["Info", "Groups"],
+          ["Info", "Group"],
+          ["Info", "Grps"],
+          ["Settings", "Groups"],
+          ["Settings", "Group"],
+          ["Settings", "Grps"]
+        )
+      ])
     );
+    const disabledFromDisabledFlag = extractBoolean(
+      settings,
+      "Disabled",
+      "IsDisabled",
+      "SlaveDisabled",
+      ["Props", "Disabled"],
+      ["Settings", "Disabled"],
+      ["Settings", "IsDisabled"],
+      ["Settings", "SlaveDisabled"]
+    );
+    const enabledFlag = extractBoolean(
+      settings,
+      "Enabled",
+      "Enable",
+      "SlaveEnabled",
+      "IsEnabled",
+      ["Props", "Enabled"],
+      ["Settings", "Enabled"],
+      ["Settings", "Enable"],
+      ["Settings", "SlaveEnabled"],
+      ["Settings", "IsEnabled"]
+    );
+    const disabledStateText = extractString(
+      info,
+      "Status",
+      "State",
+      "SlaveState",
+      "SlaveStatus",
+      "StatName",
+      "StatusText",
+      "StatusMessage",
+      "StateText",
+      ["Info", "Status"],
+      ["Info", "State"],
+      ["Info", "StatName"],
+      ["Info", "StatusText"],
+      ["Info", "StatusMessage"],
+      ["Info", "StateText"],
+      ["Props", "State"],
+      ["Props", "Status"],
+      ["Props", "SlaveState"],
+      ["Props", "StatusText"]
+    );
+    const disabledFromStateText =
+      disabledStateText !== null &&
+      disabledStateText.toLowerCase().includes("disabled");
+    const disabled =
+      disabledFromDisabledFlag === true ||
+      disabledFromStateText ||
+      (enabledFlag !== null ? enabledFlag === false : false);
 
     return {
+      disabled,
       groups,
       name,
       pools,
@@ -111,35 +211,148 @@ function assignRoomKeys(
   });
 }
 
-function normalizeJobs(jobs: DeadlineRecord[]): JobRow[] {
-  return sortJobs(
-    jobs.map((job) => {
-      const { status, statusCode } = getJobStatus(job);
+function getFailedJobActivityTimestamp(job: DeadlineRecord): string | null {
+  return extractIsoDate(
+    job,
+    "DateComp",
+    "DateCompleted",
+    "CompletedDate",
+    "DateFinished",
+    "LastWriteTime",
+    "DateUpdated",
+    "DateModified",
+    "DateFailed",
+    "DateStarted",
+    "Date",
+    "DateSubmitted",
+    "SubmittedDate",
+    "SubmitDate"
+  );
+}
 
-      return {
-        activeWorkersCount: countActiveWorkers(job),
-        estimatedCompletionAt: extractIsoDate(
+function normalizeJobs(
+  jobs: DeadlineRecord[],
+  capturedAt: string,
+  failedJobsLookbackHours: number
+): JobRow[] {
+  const lookbackThresholdMs =
+    Date.parse(capturedAt) - failedJobsLookbackHours * 60 * 60 * 1000;
+  const capturedAtMs = Date.parse(capturedAt);
+
+  return sortJobs(
+    jobs
+      .map((job) => {
+        const { status, statusCode } = getJobStatus(job);
+        const submittedAt = extractIsoDate(
           job,
-          "EstimatedCompletionDate",
-          "EstimatedCompletionTime"
-        ),
-        group: extractString(job, "Group"),
-        jobId: extractString(job, "_id", "JobID", "Id") ?? "unknown-job",
-        name: extractString(job, "Name") ?? "Unnamed Job",
-        pool: extractString(job, "Pool"),
-        progressPercent: normalizeProgressPercent(job),
-        renderingChunks: extractNumber(job, "RenderingChunks"),
-        status,
-        statusCode,
-        submittedAt: extractIsoDate(
-          job,
+          "Date",
           "DateSubmitted",
           "SubmittedDate",
           "SubmitDate"
-        ),
-        user: extractString(job, "UserName", "User")
-      };
-    })
+        );
+        const startedAt = extractIsoDate(
+          job,
+          "DateStarted",
+          "StartedDate",
+          "DateStart",
+          ["Props", "DateStarted"]
+        );
+        const progressPercent = normalizeProgressPercent(job);
+        const explicitRuntimeSeconds = extractDurationSeconds(
+          job,
+          "ElapsedJobRenderTime",
+          "ElapsedRenderTime",
+          "ElapsedTime",
+          "JobRenderTime",
+          "RenderTime",
+          "RunTime",
+          "Runtime",
+          ["Props", "ElapsedJobRenderTime"],
+          ["Props", "RenderTime"]
+        );
+        const runtimeSeconds =
+          explicitRuntimeSeconds !== null
+            ? explicitRuntimeSeconds
+            : startedAt !== null && Date.parse(startedAt) <= capturedAtMs
+              ? Math.max(0, Math.floor((capturedAtMs - Date.parse(startedAt)) / 1000))
+              : null;
+        const explicitRemainingSeconds = extractDurationSeconds(
+          job,
+          "EstimatedJobTimeRemaining",
+          "EstimatedTimeRemaining",
+          "EstimatedRemaining",
+          "RemainingTime",
+          "TimeRemaining",
+          "ETR",
+          ["Props", "EstimatedJobTimeRemaining"],
+          ["Props", "RemainingTime"]
+        );
+        const estimatedRemainingSeconds =
+          explicitRemainingSeconds !== null
+            ? explicitRemainingSeconds
+            : runtimeSeconds !== null &&
+                progressPercent !== null &&
+                progressPercent > 0 &&
+                progressPercent < 100
+              ? Math.max(
+                  0,
+                  Math.round((runtimeSeconds * (100 - progressPercent)) / progressPercent)
+                )
+              : null;
+
+        return {
+          activeWorkersCount: countActiveWorkers(job),
+          comment: extractString(
+            job,
+            "Comment",
+            "Comments",
+            ["Props", "Comment"],
+            ["Props", "Comments"],
+            ["Props", "Cmmt"]
+          ),
+          estimatedCompletionAt: extractIsoDate(
+            job,
+            "DateComp",
+            "EstimatedCompletionDate",
+            "EstimatedCompletionTime",
+            "DateCompleted",
+            "CompletedDate"
+          ),
+          group: extractString(job, "Group", ["Props", "Grp"], ["Props", "Group"]),
+          jobId: extractString(job, "_id", "JobID", "Id") ?? "unknown-job",
+          name: extractString(job, "Name", ["Props", "Name"]) ?? "Unnamed Job",
+          pool: extractString(job, "Pool", ["Props", "Pool"]),
+          progressPercent,
+          renderingChunks: extractNumber(job, "RenderingChunks", "RenderChunks"),
+          estimatedRemainingSeconds,
+          runtimeSeconds,
+          startedAt,
+          status,
+          statusCode,
+          submittedAt,
+          user: extractString(job, "UserName", "User", ["Props", "User"], [
+            "Props",
+            "UserName"
+          ])
+        };
+      })
+      .filter((job, index) => {
+        if (job.status === "Suspended") {
+          return false;
+        }
+
+        if (job.status !== "Failed") {
+          return true;
+        }
+
+        const failedAt = getFailedJobActivityTimestamp(jobs[index]);
+
+        if (!failedAt) {
+          return true;
+        }
+
+        return Date.parse(failedAt) >= lookbackThresholdMs;
+      })
   );
 }
 
@@ -151,16 +364,20 @@ function createRoomSummaries(
     const roomAssignments = assignments.filter(
       (assignment) => assignment.roomKey === roomKey
     );
-    const totals = totalsFromAssignments(roomAssignments);
+    const enabledRoomAssignments = roomAssignments.filter(
+      (assignment) => !assignment.disabled
+    );
+    const totals = totalsFromAssignments(enabledRoomAssignments);
 
     return {
+      disabledWorkers: roomAssignments.filter((assignment) => assignment.disabled).length,
       displayName: roomKey,
       health: calculateRoomHealth(totals),
       poolName: roomKey,
       roomKey,
       totals,
       unmatchedWorkerCount: roomAssignments.filter(
-        (assignment) => assignment.source === "group"
+        (assignment) => assignment.source === "group" && !assignment.disabled
       ).length,
       utilization: calculateUtilization(totals)
     };
@@ -169,9 +386,137 @@ function createRoomSummaries(
   return {
     roomSummaries,
     unassignedWorkersCount: assignments.filter(
-      (assignment) => assignment.source === "unassigned"
+      (assignment) => assignment.source === "unassigned" && !assignment.disabled
     ).length
   };
+}
+
+function getReportTimestamp(report: DeadlineRecord): string | null {
+  return extractIsoDate(
+    report,
+    "Date",
+    "DateTime",
+    "Timestamp",
+    "CreationDate",
+    "CreatedAt",
+    "ModifiedAt",
+    "LastWriteTime",
+    ["Props", "Date"],
+    ["Props", "DateTime"],
+    ["Info", "Date"],
+    ["Info", "DateTime"]
+  );
+}
+
+function getReportMessage(report: DeadlineRecord): string | null {
+  return extractString(
+    report,
+    "Message",
+    "Description",
+    "Details",
+    "Text",
+    "Title",
+    "Name",
+    "Log",
+    ["Props", "Message"],
+    ["Props", "Description"],
+    ["Props", "Details"],
+    ["Info", "Message"],
+    ["Info", "Description"]
+  );
+}
+
+function isErrorReport(report: DeadlineRecord): boolean {
+  const searchableFields = [
+    extractString(
+      report,
+      "Type",
+      "Category",
+      "ReportType",
+      "EventType",
+      "Severity",
+      "Level",
+      "Result",
+      ["Props", "Type"],
+      ["Props", "Category"],
+      ["Props", "ReportType"],
+      ["Props", "Severity"]
+    ),
+    getReportMessage(report)
+  ]
+    .filter((value): value is string => Boolean(value))
+    .join(" ")
+    .toLowerCase();
+
+  if (!searchableFields) {
+    return false;
+  }
+
+  return /(error|exception|fatal|failed|failure)/.test(searchableFields);
+}
+
+function normalizeWorkerIssues(
+  reportsByWorker: Map<string, DeadlineRecord[]>,
+  assignments: WorkerAssignment[],
+  capturedAt: string,
+  lookbackMinutes: number
+): WorkerIssue[] {
+  const lookbackThresholdMs = Date.parse(capturedAt) - lookbackMinutes * 60 * 1000;
+  const assignmentsByName = new Map(
+    assignments.map((assignment) => [assignment.name.toLowerCase(), assignment])
+  );
+
+  const issues: WorkerIssue[] = [];
+
+  for (const [workerName, reports] of reportsByWorker.entries()) {
+    const recentErrors = reports
+      .filter((report) => isErrorReport(report))
+      .map((report) => ({
+        message: getReportMessage(report),
+        timestamp: getReportTimestamp(report)
+      }))
+      .filter(
+        (report): report is { message: string | null; timestamp: string } =>
+          report.timestamp !== null &&
+          Date.parse(report.timestamp) >= lookbackThresholdMs
+      )
+      .sort((left, right) => Date.parse(right.timestamp) - Date.parse(left.timestamp));
+
+    if (recentErrors.length === 0) {
+      continue;
+    }
+
+    const assignment = assignmentsByName.get(workerName.toLowerCase());
+
+    issues.push({
+      disabled: assignment?.disabled ?? false,
+      errorCount: recentErrors.length,
+      lastErrorAt: recentErrors[0]?.timestamp ?? null,
+      lastErrorMessage: recentErrors[0]?.message ?? null,
+      level: recentErrors.length >= 3 ? "critical" : "warning",
+      roomKey: assignment?.roomKey ?? null,
+      workerName
+    });
+  }
+
+  return issues.sort((left, right) => {
+    if (left.level !== right.level) {
+      return left.level === "critical" ? -1 : 1;
+    }
+
+    if (left.errorCount !== right.errorCount) {
+      return right.errorCount - left.errorCount;
+    }
+
+    const leftTime = left.lastErrorAt ? Date.parse(left.lastErrorAt) : 0;
+    const rightTime = right.lastErrorAt ? Date.parse(right.lastErrorAt) : 0;
+
+    if (leftTime !== rightTime) {
+      return rightTime - leftTime;
+    }
+
+    return left.workerName.localeCompare(right.workerName);
+  });
 }
 
 function buildSummary(
@@ -182,7 +527,9 @@ function buildSummary(
   pollIntervalSeconds: number,
   stale: boolean
 ): FarmOverviewSummary {
-  const totals = totalsFromAssignments(assignments);
+  const totals = totalsFromAssignments(
+    assignments.filter((assignment) => !assignment.disabled)
+  );
   const jobsTotals = countJobsByStatus(jobs);
 
   return {
@@ -222,7 +569,22 @@ export function normalizeDeadlineData(
     mergeWorkerRecords(responses.workerInfo, responses.workerInfoSettings),
     config.roomKeys
   );
-  const jobs = normalizeJobs(responses.jobs);
+  const jobs = normalizeJobs(
+    responses.jobs,
+    capturedAt,
+    config.failedJobsLookbackHours
+  );
+  const workerIssues = normalizeWorkerIssues(
+    new Map(
+      responses.workerReports.map((workerReport) => [
+        workerReport.workerName.toLowerCase(),
+        workerReport.reports
+      ])
+    ),
+    workerAssignments,
+    capturedAt,
+    config.workerIssuesLookbackMinutes
+  );
   const { roomSummaries, unassignedWorkersCount } = createRoomSummaries(
     workerAssignments,
     config.roomKeys
@@ -250,7 +612,8 @@ export function normalizeDeadlineData(
     jobs,
     rooms: roomSummaries,
     source: config.source,
-    summary
+    summary,
+    workerIssues
   };
 
   return {
@@ -291,4 +654,3 @@ export function markSnapshotAsStale(
 export function emptyWorkerTotals() {
   return createEmptyWorkerTotals();
 }
-

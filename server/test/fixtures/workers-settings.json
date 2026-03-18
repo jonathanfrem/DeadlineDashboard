@@ -10,6 +10,11 @@
     "Group": "ula-501b"
   },
   {
+    "Name": "worker-501b-disabled",
+    "Pool": "ula-501b",
+    "Group": "ula-501b"
+  },
+  {
     "Name": "worker-501c-01",
     "Pool": "misc",
     "Group": "ula-501c"
@@ -30,4 +35,3 @@
     "Group": "general"
   }
 ]
-
