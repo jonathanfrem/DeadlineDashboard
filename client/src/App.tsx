@@ -56,10 +56,10 @@ const workerStatusColors: Record<keyof WorkerStatusTotals, string> = {
 
 const dashboardMeta = {
   madeBy: "Jonathan Fremstad",
-  version: "v0.1.0"
+  version: "v0.1.1"
 };
 const ISSUE_ROWS_PER_PAGE = 4;
-const ISSUE_PAGE_ROTATION_MS = 10_000;
+const ISSUE_PAGE_ROTATION_MS = 5_000;
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat("en-US").format(value);

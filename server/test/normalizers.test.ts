@@ -465,8 +465,8 @@ describe("normalizeDeadlineData", () => {
 
     expect(result.snapshot.workerIssues).toEqual([
       expect.objectContaining({
-        errorCount: 4,
-        level: "critical",
+        errorCount: 1,
+        level: "warning",
         roomKey: "ula-501b",
         workerName: "worker-a"
       })

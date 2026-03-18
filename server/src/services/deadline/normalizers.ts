@@ -553,12 +553,12 @@ function normalizeWorkerIssues(
 
     issues.push({
       disabled: assignment.disabled,
-      errorCount: taskFailures,
+      errorCount: 1,
       lastErrorAt: fallbackTimestamp,
       lastErrorMessage:
         extractString(info, "Msg", ["Info", "Msg"]) ||
-        `Worker reported ${taskFailures} task failure${taskFailures === 1 ? "" : "s"}.`,
-      level: taskFailures >= 3 ? "critical" : "warning",
+        "Worker reported recent task failures. Exact count unavailable from live worker info.",
+      level: "warning",
       roomKey: assignment.roomKey,
       workerName: assignment.name
     });
