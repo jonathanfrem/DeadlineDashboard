@@ -132,10 +132,6 @@ function formatRoomLabel(value: string): string {
   return value.replace(/^ula-/i, "").toUpperCase();
 }
 
-function formatIssueRoom(value: string | null): string {
-  return value ? formatRoomLabel(value) : "Unassigned";
-}
-
 function getJobCount(jobs: JobRow[], filter: JobFilter): number {
   if (filter === "All") {
     return jobs.length;
@@ -462,7 +458,6 @@ function WorkerIssuesPanel({
                   {issue.workerDisplayName !== issue.workerName ? (
                     <span className="issue-worker-id">{issue.workerName}</span>
                   ) : null}
-                  <span>{formatIssueRoom(issue.roomKey)}</span>
                   {issue.disabled ? (
                     <span className="issue-flag">Disabled</span>
                   ) : null}

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 export interface AppConfig {
   databasePath: string;
@@ -14,6 +15,10 @@ export interface AppConfig {
   staleAfterSeconds: number;
   workerDisplayNames: Record<string, string>;
   workerIssuesLookbackMinutes: number;
+}
+
+function getRepoRoot(): string {
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 }
 
 function parsePositiveInt(
@@ -71,12 +76,12 @@ function parseBoolean(rawValue: string | undefined, fallback: boolean): boolean 
 
 function parseWorkerDisplayNames(
   rawValue: string | undefined,
-  cwd = process.cwd()
+  repoRoot = getRepoRoot()
 ): Record<string, string> {
   const configuredPath = rawValue?.trim();
-  const fallbackPath = path.resolve(cwd, "./config/worker-display-names.json");
+  const fallbackPath = path.resolve(repoRoot, "./config/worker-display-names.json");
   const filePath = configuredPath
-    ? path.resolve(cwd, configuredPath)
+    ? path.resolve(repoRoot, configuredPath)
     : fallbackPath;
 
   if (!fs.existsSync(filePath)) {
