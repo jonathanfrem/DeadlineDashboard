@@ -39,7 +39,15 @@ interface NormalizerConfig {
   roomKeys: string[];
   source: "cache" | "live";
   stale: boolean;
+  workerDisplayNames: Record<string, string>;
   workerIssuesLookbackMinutes: number;
+}
+
+function getWorkerDisplayName(
+  workerName: string,
+  workerDisplayNames: Record<string, string>
+): string {
+  return workerDisplayNames[workerName.toLowerCase()] ?? workerName;
 }
 
 function mergeWorkerRecords(
@@ -472,7 +480,8 @@ function normalizeWorkerIssues(
   workerInfo: DeadlineRecord[],
   assignments: WorkerAssignment[],
   capturedAt: string,
-  lookbackMinutes: number
+  lookbackMinutes: number,
+  workerDisplayNames: Record<string, string>
 ): WorkerIssue[] {
   const lookbackThresholdMs = Date.parse(capturedAt) - lookbackMinutes * 60 * 1000;
   const assignmentsByName = new Map(
@@ -521,7 +530,11 @@ function normalizeWorkerIssues(
       lastErrorMessage: recentErrors[0]?.message ?? null,
       level: recentErrors.length >= 3 ? "critical" : "warning",
       roomKey: assignment.roomKey,
-      workerName
+      workerDisplayName: getWorkerDisplayName(
+        assignment.name,
+        workerDisplayNames
+      ),
+      workerName: assignment.name
     });
     issueNames.add(workerName.toLowerCase());
   }
@@ -560,6 +573,10 @@ function normalizeWorkerIssues(
         "Worker reported recent task failures. Exact count unavailable from live worker info.",
       level: "warning",
       roomKey: assignment.roomKey,
+      workerDisplayName: getWorkerDisplayName(
+        assignment.name,
+        workerDisplayNames
+      ),
       workerName: assignment.name
     });
   }
@@ -651,7 +668,8 @@ export function normalizeDeadlineData(
     responses.workerInfo,
     workerAssignments,
     capturedAt,
-    config.workerIssuesLookbackMinutes
+    config.workerIssuesLookbackMinutes,
+    config.workerDisplayNames
   );
   const { roomSummaries, unassignedWorkersCount } = createRoomSummaries(
     workerAssignments,

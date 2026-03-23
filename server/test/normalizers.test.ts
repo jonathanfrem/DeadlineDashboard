@@ -33,6 +33,7 @@ describe("normalizeDeadlineData", () => {
         roomKeys: ["ula-501b", "ula-501c", "ula-502"],
         source: "live",
         stale: false,
+        workerDisplayNames: {},
         workerIssuesLookbackMinutes: 30
       }
     );
@@ -75,6 +76,7 @@ describe("normalizeDeadlineData", () => {
         roomKeys: ["ula-501b", "ula-501c", "ula-502"],
         source: "live",
         stale: false,
+        workerDisplayNames: {},
         workerIssuesLookbackMinutes: 30
       }
     );
@@ -107,6 +109,7 @@ describe("normalizeDeadlineData", () => {
         roomKeys: ["ula-501b", "ula-501c", "ula-502"],
         source: "live",
         stale: false,
+        workerDisplayNames: {},
         workerIssuesLookbackMinutes: 30
       }
     );
@@ -145,6 +148,7 @@ describe("normalizeDeadlineData", () => {
         roomKeys: ["ula-501b", "ula-501c", "ula-502"],
         source: "live",
         stale: false,
+        workerDisplayNames: {},
         workerIssuesLookbackMinutes: 30
       }
     );
@@ -190,6 +194,7 @@ describe("normalizeDeadlineData", () => {
         roomKeys: ["ula-501b", "ula-501c", "ula-502"],
         source: "live",
         stale: false,
+        workerDisplayNames: {},
         workerIssuesLookbackMinutes: 30
       }
     );
@@ -279,6 +284,7 @@ describe("normalizeDeadlineData", () => {
         roomKeys: ["ula-501b", "ula-501c", "ula-502"],
         source: "live",
         stale: false,
+        workerDisplayNames: {},
         workerIssuesLookbackMinutes: 30
       }
     );
@@ -356,6 +362,7 @@ describe("normalizeDeadlineData", () => {
         roomKeys: ["ula-501b", "ula-501c", "ula-502"],
         source: "live",
         stale: false,
+        workerDisplayNames: {},
         workerIssuesLookbackMinutes: 30
       }
     );
@@ -366,6 +373,7 @@ describe("normalizeDeadlineData", () => {
         errorCount: 3,
         level: "critical",
         roomKey: "ula-501c",
+        workerDisplayName: "worker-b",
         workerName: "worker-b"
       }),
       expect.objectContaining({
@@ -374,7 +382,54 @@ describe("normalizeDeadlineData", () => {
         lastErrorMessage: "Task failed with render exception",
         level: "warning",
         roomKey: "ula-501b",
+        workerDisplayName: "worker-a",
         workerName: "worker-a"
+      })
+    ]);
+  });
+
+  it("maps worker display names for the issue view without changing raw worker ids", () => {
+    const result = normalizeDeadlineData(
+      {
+        groups: ["ula-501b", "ula-501c", "ula-502"],
+        jobs: [],
+        pools: ["ula-501b", "ula-501c", "ula-502"],
+        workerInfo: [{ Name: "EGMSU9-FARM05", Pools: ["ula-501b"], Stat: 1 }],
+        workerInfoSettings: [
+          { Name: "EGMSU9-FARM05", Pools: ["ula-501b"], Enable: true }
+        ],
+        workerReports: [
+          {
+            workerName: "EGMSU9-FARM05",
+            reports: [
+              {
+                Date: "2026-03-17T12:25:00Z",
+                Message: "Task failed with render exception",
+                Type: "Error"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        capturedAt: "2026-03-17T12:30:00Z",
+        failedJobsLookbackHours: 12,
+        pollIntervalSeconds: 15,
+        roomKeys: ["ula-501b", "ula-501c", "ula-502"],
+        source: "live",
+        stale: false,
+        workerDisplayNames: {
+          "egmsu9-farm05": "501B-05"
+        },
+        workerIssuesLookbackMinutes: 30
+      }
+    );
+
+    expect(result.snapshot.workerIssues).toEqual([
+      expect.objectContaining({
+        roomKey: "ula-501b",
+        workerDisplayName: "501B-05",
+        workerName: "EGMSU9-FARM05"
       })
     ]);
   });
@@ -407,6 +462,7 @@ describe("normalizeDeadlineData", () => {
         roomKeys: ["ula-501b", "ula-501c", "ula-502"],
         source: "live",
         stale: false,
+        workerDisplayNames: {},
         workerIssuesLookbackMinutes: 30
       }
     );
@@ -459,6 +515,7 @@ describe("normalizeDeadlineData", () => {
         roomKeys: ["ula-501b", "ula-501c", "ula-502"],
         source: "live",
         stale: false,
+        workerDisplayNames: {},
         workerIssuesLookbackMinutes: 30
       }
     );
@@ -507,6 +564,7 @@ describe("normalizeDeadlineData", () => {
         roomKeys: ["ula-501b", "ula-501c", "ula-502"],
         source: "live",
         stale: false,
+        workerDisplayNames: {},
         workerIssuesLookbackMinutes: 30
       }
     );

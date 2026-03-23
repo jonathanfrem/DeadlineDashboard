@@ -76,6 +76,7 @@ export interface WorkerIssue {
   lastErrorMessage: string | null;
   level: "critical" | "warning";
   roomKey: string | null;
+  workerDisplayName: string;
   workerName: string;
 }
 

@@ -414,7 +414,10 @@ function WorkerIssuesPanel({
             {visibleIssues.map((issue) => (
               <article className="issue-row compact" key={issue.workerName}>
                 <div className="issue-primary">
-                  <strong>{issue.workerName}</strong>
+                  <strong>{issue.workerDisplayName}</strong>
+                  {issue.workerDisplayName !== issue.workerName ? (
+                    <span className="issue-worker-id">{issue.workerName}</span>
+                  ) : null}
                   <span>{formatIssueRoom(issue.roomKey)}</span>
                   {issue.disabled ? (
                     <span className="issue-flag">Disabled</span>

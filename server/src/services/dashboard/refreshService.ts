@@ -160,6 +160,7 @@ export class DashboardRefreshService {
         roomKeys: this.config.roomKeys,
         source: "live",
         stale: false,
+        workerDisplayNames: this.config.workerDisplayNames,
         workerIssuesLookbackMinutes: this.config.workerIssuesLookbackMinutes
       });
       const fetchedAt = normalized.snapshot.capturedAt;

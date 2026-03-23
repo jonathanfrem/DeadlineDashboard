@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import path from "node:path";
 
 export interface AppConfig {
@@ -11,6 +12,7 @@ export interface AppConfig {
   port: number;
   roomKeys: string[];
   staleAfterSeconds: number;
+  workerDisplayNames: Record<string, string>;
   workerIssuesLookbackMinutes: number;
 }
 
@@ -67,6 +69,45 @@ function parseBoolean(rawValue: string | undefined, fallback: boolean): boolean 
   );
 }
 
+function parseWorkerDisplayNames(
+  rawValue: string | undefined,
+  cwd = process.cwd()
+): Record<string, string> {
+  const configuredPath = rawValue?.trim();
+  const fallbackPath = path.resolve(cwd, "./config/worker-display-names.json");
+  const filePath = configuredPath
+    ? path.resolve(cwd, configuredPath)
+    : fallbackPath;
+
+  if (!fs.existsSync(filePath)) {
+    return {};
+  }
+
+  const parsed = JSON.parse(fs.readFileSync(filePath, "utf8")) as unknown;
+
+  if (
+    typeof parsed !== "object" ||
+    parsed === null ||
+    Array.isArray(parsed)
+  ) {
+    throw new Error(
+      `WORKER_DISPLAY_NAMES_PATH must point to a JSON object of worker name mappings.`
+    );
+  }
+
+  return Object.fromEntries(
+    Object.entries(parsed).map(([workerName, displayName]) => {
+      if (typeof displayName !== "string" || displayName.trim() === "") {
+        throw new Error(
+          `Worker display name mapping for "${workerName}" must be a non-empty string.`
+        );
+      }
+
+      return [workerName.trim().toLowerCase(), displayName.trim()];
+    })
+  );
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return {
     databasePath: path.resolve(
@@ -98,6 +139,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       45,
       "STALE_AFTER_SECONDS"
     ),
+    workerDisplayNames: parseWorkerDisplayNames(env.WORKER_DISPLAY_NAMES_PATH),
     workerIssuesLookbackMinutes: parsePositiveInt(
       env.WORKER_ISSUES_LOOKBACK_MINUTES,
       30,

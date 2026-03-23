@@ -74,6 +74,7 @@ DATABASE_PATH=./server/data/deadline-dashboard.sqlite
 FAILED_JOBS_LOOKBACK_HOURS=12
 HOST=0.0.0.0
 WORKER_ISSUES_LOOKBACK_MINUTES=30
+WORKER_DISPLAY_NAMES_PATH=./config/worker-display-names.json
 POLL_INTERVAL_SECONDS=15
 STALE_AFTER_SECONDS=45
 ROOM_KEYS=ula-501b,ula-501c,ula-502
@@ -166,8 +167,27 @@ If that returns JSON, the dashboard backend should be able to connect when `DEAD
 - `WORKER_ISSUES_LOOKBACK_MINUTES`
   How far back to look for recent worker issues from Deadline worker reports. Default: `30`
 
+- `WORKER_DISPLAY_NAMES_PATH`
+  Optional path to a JSON file that maps Deadline worker names to human-friendly labels for the issue view. If unset, the backend also checks `./config/worker-display-names.json`.
+
 - `PORT`
   Backend port. Default: `3001`
+
+### Worker Display Name Mapping
+
+Create `config/worker-display-names.json` to show a friendlier machine label in the worker issues panel while still keeping the raw Deadline worker name internally.
+
+Example:
+
+```json
+{
+  "EGMSU9-FARM05": "501B-05",
+  "EGMSU9-FARM06": "501B-06",
+  "EGMSU9-FARM21": "502-01"
+}
+```
+
+Matching is case-insensitive, so `EGMSU9-FARM05` and `egmsu9-farm05` are treated the same.
 
 ## API Routes
 

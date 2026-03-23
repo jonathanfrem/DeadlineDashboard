@@ -23,6 +23,7 @@ function createConfig(databasePath: string): AppConfig {
     port: 3001,
     roomKeys: ["ula-501b", "ula-501c", "ula-502"],
     staleAfterSeconds: 45,
+    workerDisplayNames: {},
     workerIssuesLookbackMinutes: 30
   };
 }

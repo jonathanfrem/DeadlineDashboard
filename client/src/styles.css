@@ -703,6 +703,10 @@ button {
   line-height: 1.1;
 }
 
+.issue-worker-id {
+  font-family: "IBM Plex Mono", monospace;
+}
+
 .issue-primary span:not(.issue-flag) {
   color: var(--muted);
   font-size: 0.72rem;
