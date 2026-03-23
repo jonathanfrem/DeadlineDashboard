@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import type {
   DashboardViewResponse,
   HealthCheckResponse,
@@ -158,6 +158,50 @@ function fetchJson<T>(url: string, signal: AbortSignal): Promise<T> {
 
     return (await response.json()) as T;
   });
+}
+
+function normalizeAssetPath(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    return new URL(value, window.location.origin).pathname;
+  } catch {
+    return value;
+  }
+}
+
+function getCurrentFrontendAssetPath(): string | null {
+  const entryScript = document.querySelector<HTMLScriptElement>(
+    'script[type="module"][src]'
+  );
+
+  return normalizeAssetPath(entryScript?.getAttribute("src") ?? null);
+}
+
+async function fetchLatestFrontendAssetPath(
+  signal: AbortSignal
+): Promise<string | null> {
+  const response = await fetch(window.location.pathname || "/", {
+    cache: "no-store",
+    headers: {
+      Accept: "text/html"
+    },
+    signal
+  });
+
+  if (!response.ok) {
+    throw new Error(`frontend version check returned ${response.status}`);
+  }
+
+  const html = await response.text();
+  const documentFragment = new DOMParser().parseFromString(html, "text/html");
+  const entryScript = documentFragment.querySelector<HTMLScriptElement>(
+    'script[type="module"][src]'
+  );
+
+  return normalizeAssetPath(entryScript?.getAttribute("src") ?? null);
 }
 
 function buildRoomSegments(room: RoomSummary) {
@@ -549,6 +593,10 @@ export default function App() {
     isRefreshing: false
   });
   const [selectedFilter, setSelectedFilter] = useState<JobFilter>("All");
+  const currentFrontendAssetPathRef = useRef<string | null>(
+    getCurrentFrontendAssetPath()
+  );
+  const isReloadingForUpdateRef = useRef(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -569,6 +617,22 @@ export default function App() {
 
         if (!mounted) {
           return;
+        }
+
+        if (import.meta.env.PROD && !isReloadingForUpdateRef.current) {
+          const latestFrontendAssetPath = await fetchLatestFrontendAssetPath(
+            controller.signal
+          );
+
+          if (
+            latestFrontendAssetPath &&
+            currentFrontendAssetPathRef.current &&
+            latestFrontendAssetPath !== currentFrontendAssetPathRef.current
+          ) {
+            isReloadingForUpdateRef.current = true;
+            window.location.reload();
+            return;
+          }
         }
 
         startTransition(() => {
