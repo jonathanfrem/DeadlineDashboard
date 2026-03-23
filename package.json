@@ -11,6 +11,7 @@
     "db:migrate": "npm run db:migrate --workspace server",
     "dev": "concurrently -n server,client -c green,blue \"npm run dev --workspace server\" \"npm run dev --workspace client\"",
     "postinstall": "npm run build --workspace packages/contracts",
+    "update:start": "git pull && npm run build && npm run db:migrate && npm run start --workspace server",
     "test": "npm run test --workspace server",
     "typecheck": "npm run typecheck --workspace packages/contracts && npm run build --workspace packages/contracts && npm run typecheck --workspace server && npm run typecheck --workspace client"
   },

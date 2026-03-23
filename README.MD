@@ -206,10 +206,13 @@ These routes return normalized dashboard data. The frontend does not consume raw
 ```bash
 npm run dev
 npm run db:migrate
+npm run update:start
 npm test
 npm run typecheck
 npm run build
 ```
+
+`npm run update:start` runs the full update flow for the TV machine: `git pull`, rebuilds the app, runs database migrations, and starts the production server.
 
 ## Production / LAN Access
 

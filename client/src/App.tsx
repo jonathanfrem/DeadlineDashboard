@@ -56,7 +56,7 @@ const workerStatusColors: Record<keyof WorkerStatusTotals, string> = {
 
 const dashboardMeta = {
   madeBy: "Jonathan Fremstad",
-  version: "v0.1.2"
+  version: "v0.1.3"
 };
 const ISSUE_ROWS_PER_PAGE = 4;
 const ISSUE_PAGE_ROTATION_MS = 5_000;
