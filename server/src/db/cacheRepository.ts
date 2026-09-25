@@ -14,6 +14,8 @@ export interface CachedRecord<T> {
 
 export interface DashboardCacheBundle {
   jobs: JobRow[];
+  mayaCrashCount: number | null;
+  nukeCrashCount: number | null;
   rooms: DashboardRoomsResponse;
   snapshot: DashboardSnapshot;
   summary: FarmOverviewSummary;
@@ -80,6 +82,8 @@ export class CacheRepository {
     this.write("summary", bundle.summary, fetchedAt, expiresAt);
     this.write("jobs", bundle.jobs, fetchedAt, expiresAt);
     this.write("rooms", bundle.rooms, fetchedAt, expiresAt);
+    this.write("maya_crash_count", bundle.mayaCrashCount, fetchedAt, expiresAt);
+    this.write("nuke_crash_count", bundle.nukeCrashCount, fetchedAt, expiresAt);
   }
 
   readDashboardBundle(): CachedRecord<DashboardCacheBundle> | null {
@@ -92,6 +96,9 @@ export class CacheRepository {
       return null;
     }
 
+    const mayaCrashCountRecord = this.read<number | null>("maya_crash_count");
+    const nukeCrashCountRecord = this.read<number | null>("nuke_crash_count");
+
     return {
       fetchedAt: snapshot.fetchedAt,
       expiresAt: snapshot.expiresAt,
@@ -99,7 +106,9 @@ export class CacheRepository {
         snapshot: snapshot.payload,
         summary: summary.payload,
         jobs: jobs.payload,
-        rooms: rooms.payload
+        rooms: rooms.payload,
+        mayaCrashCount: mayaCrashCountRecord?.payload ?? null,
+        nukeCrashCount: nukeCrashCountRecord?.payload ?? null
       }
     };
   }

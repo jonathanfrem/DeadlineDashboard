@@ -395,6 +395,17 @@ function WorkerBreakdown({
   );
 }
 
+function CrashCounter({ label, count }: { label: string; count: number | null }) {
+  return (
+    <section className="crash-counter-panel">
+      <span className="crash-counter-label">{label}</span>
+      <strong className="crash-counter-value">
+        {count === null ? "—" : formatNumber(count)}
+      </strong>
+    </section>
+  );
+}
+
 function WorkerIssuesPanel({
   issues,
   lookbackMinutes
@@ -533,7 +544,7 @@ function JobsTable({
               <tr key={job.jobId}>
                 <td>
                   <div className="job-primary">
-                    <strong>{job.name}</strong>
+                    <strong title={job.name}>{job.name}</strong>
                     <span>{job.jobId}</span>
                   </div>
                 </td>
@@ -765,18 +776,8 @@ export default function App() {
                 meta={`${dashboard.summary.jobs.pending} pending`}
                 value={formatNumber(dashboard.summary.jobs.queued)}
               />
-              <MetricCard
-                accent="red"
-                label="Failed Jobs"
-                meta="Needs operator review"
-                value={formatNumber(dashboard.summary.jobs.failed)}
-              />
-              <MetricCard
-                accent="red"
-                label="Stalled Workers"
-                meta={`${dashboard.summary.roomsWithIssues.length} rooms with issues`}
-                value={formatNumber(dashboard.summary.totals.stalled)}
-              />
+              <CrashCounter label="Maya Crashes" count={dashboard.mayaCrashCount} />
+              <CrashCounter label="Nuke Crashes" count={dashboard.nukeCrashCount} />
             </section>
 
             <JobsTable

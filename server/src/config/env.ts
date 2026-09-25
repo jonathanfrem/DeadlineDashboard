@@ -3,6 +3,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export interface AppConfig {
+  countTogetherApiKey: string | null;
+  countTogetherMayaCounterId: string;
+  countTogetherNukeCounterId: string;
   databasePath: string;
   deadlineBaseUrl: string | null;
   deadlineRequestTimeoutMs: number;
@@ -115,6 +118,13 @@ function parseWorkerDisplayNames(
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   return {
+    countTogetherApiKey: env.COUNTTOGETHER_API_KEY?.trim() || null,
+    countTogetherMayaCounterId:
+      env.COUNTTOGETHER_MAYA_COUNTER_ID?.trim() ||
+      "019c513a-e787-776a-a968-aa8178058780",
+    countTogetherNukeCounterId:
+      env.COUNTTOGETHER_NUKE_COUNTER_ID?.trim() ||
+      "019c513a-4437-7faf-aa7e-bb5340368cbd",
     databasePath: path.resolve(
       process.cwd(),
       env.DATABASE_PATH ?? "./data/deadline-dashboard.sqlite"

@@ -9,11 +9,14 @@ import type {
 } from "@deadline-dashboard/contracts";
 import type { AppConfig } from "../../config/env.js";
 import { CacheRepository, type DashboardCacheBundle } from "../../db/cacheRepository.js";
+import { fetchMayaCrashCount } from "../counttogether/client.js";
 import { DeadlineApiClient } from "../deadline/client.js";
 import { markSnapshotAsStale, normalizeDeadlineData } from "../deadline/normalizers.js";
 
 export interface DashboardDataPayload {
   jobs: JobRow[];
+  mayaCrashCount: number | null;
+  nukeCrashCount: number | null;
   roomsResponse: DashboardRoomsResponse;
   snapshot: DashboardSnapshot;
   summary: FarmOverviewSummary;
@@ -27,6 +30,8 @@ export function toDashboardViewResponse(
   return {
     capturedAt: payload.snapshot.capturedAt,
     jobs: payload.jobs,
+    mayaCrashCount: payload.mayaCrashCount,
+    nukeCrashCount: payload.nukeCrashCount,
     poolValidationWarnings: payload.roomsResponse.poolValidationWarnings,
     rooms: payload.roomsResponse.rooms,
     source: payload.snapshot.source,
@@ -119,6 +124,8 @@ export class DashboardRefreshService {
     if (!stale) {
       return {
         jobs: bundle.jobs,
+        mayaCrashCount: bundle.mayaCrashCount,
+        nukeCrashCount: bundle.nukeCrashCount,
         roomsResponse: {
           ...bundle.rooms,
           source: "cache"
@@ -142,6 +149,8 @@ export class DashboardRefreshService {
 
     return {
       ...markSnapshotAsStale(bundle.snapshot, bundle.jobs, bundle.rooms),
+      mayaCrashCount: bundle.mayaCrashCount,
+      nukeCrashCount: bundle.nukeCrashCount,
       workerIssues: bundle.snapshot.workerIssues ?? [],
       workerIssuesLookbackMinutes: this.config.workerIssuesLookbackMinutes
     };
@@ -153,7 +162,33 @@ export class DashboardRefreshService {
     this.lastAttemptedRefreshAt = new Date().toISOString();
 
     try {
-      const responses = await this.deadlineClient.fetchCurrentState();
+      const [deadlineResponses, mayaCrashCountResult, nukeCrashCountResult] =
+        await Promise.allSettled([
+          this.deadlineClient.fetchCurrentState(),
+          this.config.countTogetherApiKey
+            ? fetchMayaCrashCount(
+                this.config.countTogetherApiKey,
+                this.config.countTogetherMayaCounterId
+              )
+            : Promise.resolve(null),
+          this.config.countTogetherApiKey
+            ? fetchMayaCrashCount(
+                this.config.countTogetherApiKey,
+                this.config.countTogetherNukeCounterId
+              )
+            : Promise.resolve(null)
+        ]);
+
+      if (deadlineResponses.status === "rejected") {
+        throw deadlineResponses.reason as Error;
+      }
+
+      const mayaCrashCount =
+        mayaCrashCountResult.status === "fulfilled" ? mayaCrashCountResult.value : null;
+      const nukeCrashCount =
+        nukeCrashCountResult.status === "fulfilled" ? nukeCrashCountResult.value : null;
+
+      const responses = deadlineResponses.value;
       const normalized = normalizeDeadlineData(responses, {
         pollIntervalSeconds: this.config.pollIntervalSeconds,
         failedJobsLookbackHours: this.config.failedJobsLookbackHours,
@@ -171,6 +206,8 @@ export class DashboardRefreshService {
       this.cacheRepository.writeDashboardBundle(
         {
           jobs: normalized.jobs,
+          mayaCrashCount,
+          nukeCrashCount,
           rooms: normalized.roomsResponse,
           snapshot: normalized.snapshot,
           summary: normalized.summary
@@ -184,6 +221,8 @@ export class DashboardRefreshService {
 
       return {
         jobs: normalized.jobs,
+        mayaCrashCount,
+        nukeCrashCount,
         roomsResponse: normalized.roomsResponse,
         snapshot: normalized.snapshot,
         summary: normalized.summary,

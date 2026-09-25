@@ -100,6 +100,8 @@ export interface DashboardRoomsResponse {
 export interface DashboardViewResponse {
   capturedAt: string;
   jobs: JobRow[];
+  mayaCrashCount: number | null;
+  nukeCrashCount: number | null;
   poolValidationWarnings: string[];
   rooms: RoomSummary[];
   source: DashboardSource;
